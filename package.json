@@ -1,0 +1,29 @@
+{
+  "name": "photomaster",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "AI-assisted, non-destructive photo editor for full-resolution DSLR photographs",
+  "workspaces": [
+    "packages/shared",
+    "packages/engine",
+    "packages/server",
+    "packages/app"
+  ],
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,app -c cyan,magenta \"npm:dev:server\" \"npm:dev:app\"",
+    "dev:server": "npm run dev -w @photomaster/server",
+    "dev:app": "npm run dev -w @photomaster/app",
+    "build": "npm run build -w @photomaster/app",
+    "start": "npm run start -w @photomaster/server",
+    "typecheck": "tsc -p packages/shared && tsc -p packages/engine && tsc -p packages/server && tsc -p packages/app",
+    "test": "node --experimental-strip-types --test packages/server/test/*.test.ts"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}

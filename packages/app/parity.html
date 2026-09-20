@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>PhotoMaster · Vorschau/Export-Parität</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #0b0b0d;
+        color: #edecea;
+        font: 13px/1.6 ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', monospace;
+      }
+      h1 { font-size: 19px; margin: 0 0 4px; }
+      p.lead { color: #a3a2a0; margin: 0 0 20px; max-width: 74ch; line-height: 1.6; }
+      table { border-collapse: collapse; margin: 14px 0 26px; }
+      th, td { padding: 4px 14px 4px 0; text-align: right; }
+      th:first-child, td:first-child { text-align: left; }
+      th { color: #6e6d6c; font-weight: 500; border-bottom: 1px solid #2a2a30; }
+      tr.fail td { color: #d9614b; }
+      tr.pass td.verdict { color: #6fae7a; }
+      h2 { font-size: 15px; margin: 22px 0 0; }
+      .note { color: #6e6d6c; }
+      #summary { margin: 18px 0 0; padding: 12px 16px; border: 1px solid #2a2a30; border-radius: 10px; }
+      canvas { display: none; }
+    </style>
+  </head>
+  <body>
+    <h1>Vorschau/Export-Parität</h1>
+    <p class="lead">
+      ARCHITECTURE.md Anforderung C: Vorschau und Export müssen identisch aussehen, weil es nur
+      EINE Implementierung der Bildmathematik gibt. Diese Seite behauptet das nicht, sondern misst
+      es: Dasselbe Testbild läuft einmal über den Vorschauweg (kleine Textur, ein Durchgang) und
+      einmal über den Exportweg (volle Auflösung, kachelweise) — und die Ergebnisse werden
+      verglichen.
+    </p>
+    <div id="out">Wird gemessen …</div>
+    <canvas id="gl"></canvas>
+    <script type="module" src="/src/parity/parity.ts"></script>
+  </body>
+</html>

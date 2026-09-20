@@ -1,0 +1,208 @@
+.home {
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.home__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5) var(--space-5);
+}
+
+.home__brand { display: flex; align-items: center; gap: var(--space-4); }
+
+.home__header-actions { display: flex; align-items: center; gap: var(--space-3); }
+
+/* Objektiv-Andeutung aus zwei Ringen — kein Bitmap-Logo nötig. */
+.home__logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  position: relative;
+  flex: none;
+}
+.home__logo::after {
+  content: '';
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+}
+
+.home__title { font-size: var(--fs-lg); letter-spacing: -0.02em; }
+
+.home__tagline {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.ai-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-1);
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.ai-badge.is-on { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
+
+.home__main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 var(--space-5) var(--space-7);
+}
+
+/* ── Ablagefläche ───────────────────────────────────────────────────────── */
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-7) var(--space-5);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-0);
+  text-align: center;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.dropzone.is-over {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.dropzone.is-busy { border-style: solid; }
+
+.dropzone__icon { color: var(--text-dim); }
+
+.dropzone__title {
+  font-size: var(--fs-md);
+  font-weight: 500;
+}
+
+.dropzone__hint {
+  font-size: var(--fs-sm);
+  color: var(--text-muted);
+  max-width: 460px;
+  line-height: 1.55;
+  margin-bottom: var(--space-2);
+}
+
+.dropzone__progress {
+  width: min(420px, 100%);
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+}
+
+.dropzone__progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 120ms linear;
+}
+
+/* ── Projektübersicht ───────────────────────────────────────────────────── */
+
+.home__section { margin-top: var(--space-7); }
+
+.home__empty {
+  padding: var(--space-7) var(--space-4);
+  text-align: center;
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+}
+
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.project {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.project:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+}
+
+.project__open { display: block; width: 100%; text-align: left; }
+
+.project__thumb {
+  aspect-ratio: 3 / 2;
+  background: var(--canvas-bg);
+  overflow: hidden;
+}
+
+.project__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.project__info { padding: var(--space-3); }
+
+.project__name {
+  font-size: var(--fs-base);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project__meta {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* Löschen erscheint erst beim Darüberfahren — es soll nicht die
+   auffälligste Schaltfläche der Kachel sein. */
+.project__delete {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  background: rgba(10, 10, 12, 0.75);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+.project:hover .project__delete,
+.project__delete:focus-visible { opacity: 1; }
+
+@media (pointer: coarse) {
+  .project__delete { opacity: 1; }
+}
+
+@media (max-width: 620px) {
+  .home__header { flex-direction: column; align-items: flex-start; gap: var(--space-3); padding: var(--space-5) var(--space-4) var(--space-4); }
+  .home__main { padding: 0 var(--space-4) var(--space-6); }
+  .dropzone { padding: var(--space-6) var(--space-4); }
+  .project-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
+}

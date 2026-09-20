@@ -1,0 +1,62 @@
+.curve {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.curve__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.curve__channels {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-0);
+  border-radius: var(--radius-sm);
+}
+
+.curve__channel {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  position: relative;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+.curve__channel:hover {
+  color: var(--text);
+}
+
+.curve__channel.is-active {
+  background: var(--surface-3);
+  color: var(--channel-color);
+}
+
+/* Punkt für Kanäle mit veränderter Kurve. */
+.curve__channel.is-changed::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--channel-color);
+}
+
+.curve__canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--surface-0);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: crosshair;
+  touch-action: none;
+}

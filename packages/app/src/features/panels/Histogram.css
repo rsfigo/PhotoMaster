@@ -1,0 +1,33 @@
+.histogram {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 84px;
+  padding: var(--space-2);
+  background: var(--surface-0);
+  border-bottom: 1px solid var(--line);
+}
+
+.histogram__canvas {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: block;
+}
+
+/* Die Clipping-Anzeigen sitzen dort, wo der Wert anliegt: links Schwarz,
+   rechts Weiß. Ohne Anschlag bleiben sie unauffällig dunkel. */
+.histogram__clip {
+  width: 4px;
+  border-radius: 2px;
+  background: var(--surface-3);
+  transition: background var(--dur) var(--ease);
+}
+
+.histogram__clip--low.is-on {
+  background: var(--ch-b);
+}
+
+.histogram__clip--high.is-on {
+  background: var(--ch-r);
+}

@@ -1,0 +1,91 @@
+/**
+ * Design-Tokens.
+ *
+ * Die Oberfläche ist durchgehend dunkel — nicht als Geschmacksfrage, sondern
+ * weil jede helle Fläche neben einem Foto dessen wahrgenommene Helligkeit und
+ * Sättigung verschiebt. Aus demselben Grund sind alle Grautöne bewusst
+ * NEUTRAL (kein Blaustich): Ein leicht blauer Hintergrund lässt ein warmes
+ * Bild wärmer aussehen, als es ist, und man korrigiert gegen die Oberfläche
+ * statt gegen das Bild.
+ *
+ * Farbe kommt fast ausschließlich vom Foto. Die einzige Akzentfarbe ist ein
+ * gedecktes Bernstein für aktive Zustände.
+ */
+
+:root {
+  /* Flächen, von tief nach hoch */
+  --bg: #0b0b0d;
+  --surface-0: #121214;
+  --surface-1: #17171a;
+  --surface-2: #1e1e22;
+  --surface-3: #26262b;
+  --surface-hover: #2c2c32;
+
+  /* Die Bildfläche ist das tiefste Schwarz der Oberfläche. */
+  --canvas-bg: #08080a;
+
+  --line: #2a2a30;
+  --line-strong: #3a3a42;
+
+  --text: #edecea;
+  --text-muted: #a3a2a0;
+  --text-dim: #6e6d6c;
+
+  --accent: #d9a441;
+  --accent-soft: rgba(217, 164, 65, 0.16);
+  --accent-line: rgba(217, 164, 65, 0.45);
+
+  --danger: #d9614b;
+  --danger-soft: rgba(217, 97, 75, 0.15);
+  --success: #6fae7a;
+  --info: #6f97c4;
+
+  /* Histogramm-Kanäle: additive Grundfarben, bewusst gedämpft. */
+  --ch-r: #e0574f;
+  --ch-g: #62b566;
+  --ch-b: #5b8fd6;
+  --ch-luma: #cfcecb;
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Segoe UI Mono', monospace;
+
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-base: 13px;
+  --fs-md: 15px;
+  --fs-lg: 19px;
+  --fs-xl: 26px;
+  --fs-2xl: 36px;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 20px 60px rgba(0, 0, 0, 0.6);
+
+  /* Kurz und ohne Überschwingen: Die Oberfläche soll nicht mitspielen wollen. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 110ms;
+  --dur: 180ms;
+
+  --header-h: 52px;
+  --panel-w: 340px;
+}
+
+/* Wer Bewegung abgeschaltet hat, bekommt keine. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+  }
+}

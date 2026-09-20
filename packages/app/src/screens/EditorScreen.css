@@ -1,0 +1,179 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg);
+}
+
+/* ── Kopfzeile ──────────────────────────────────────────────────────────── */
+
+.editor__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  height: var(--header-h);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-0);
+  flex: none;
+}
+
+.editor__header-left,
+.editor__header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.editor__title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.editor__name {
+  font-size: var(--fs-base);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor__meta {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+
+.editor__save {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  margin-right: var(--space-2);
+  white-space: nowrap;
+}
+
+.editor__save.is-dirty { color: var(--accent); }
+
+/* ── Hauptbereich ───────────────────────────────────────────────────────── */
+
+.editor__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.editor__panel {
+  width: var(--panel-w);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--line);
+  background: var(--surface-1);
+}
+
+.editor__tabs {
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-0);
+  flex: none;
+}
+
+.editor__tabs::-webkit-scrollbar { display: none; }
+
+/**
+ * Verblendung an den Rändern, wenn die Leiste breiter ist als der Bildschirm.
+ * Ein abgeschnittener Reiter allein ist kein verlässlicher Hinweis — wenn die
+ * Kante zufällig zwischen zwei Reiter fällt, sieht die Leiste vollständig aus,
+ * obwohl Masken und Versionen dahinter liegen.
+ */
+.editor__tabs.has-more-end {
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent 100%);
+}
+
+.editor__tabs.has-more-start {
+  mask-image: linear-gradient(to right, transparent 0, #000 32px);
+}
+
+.editor__tabs.has-more-start.has-more-end {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 32px,
+    #000 calc(100% - 32px),
+    transparent 100%
+  );
+}
+
+.editor__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: var(--space-2) var(--space-3);
+  min-width: 62px;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  border-bottom: 2px solid transparent;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  flex: none;
+}
+
+.editor__tab:hover { color: var(--text-muted); }
+
+.editor__tab.is-active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.editor__panel-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.version__input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px var(--space-2);
+  background: var(--surface-2);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-base);
+}
+.version__input:focus { outline: none; }
+
+/* ── Schmale Fenster (§26) ──────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .editor__body { flex-direction: column; }
+
+  .editor__panel {
+    width: 100%;
+    /* Das Foto behält die obere Hälfte; das Panel darf nicht so hoch werden,
+       dass vom Bild nichts mehr übrig bleibt. */
+    height: min(52vh, 460px);
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+
+  /* Die Reiter wandern an den unteren Rand — dort sind sie mit dem Daumen
+     erreichbar, während das Bild oben sichtbar bleibt. */
+  .editor__panel { flex-direction: column; }
+  .editor__tabs { order: 3; border-bottom: none; border-top: 1px solid var(--line); }
+  .editor__panel-content { order: 2; }
+  .histogram { order: 1; }
+
+  .editor__tab { min-width: 58px; padding: var(--space-2); }
+}
+
+@media (max-width: 620px) {
+  .editor__header { padding: 0 var(--space-2); }
+  .editor__save { display: none; }
+  .editor__meta { display: none; }
+}

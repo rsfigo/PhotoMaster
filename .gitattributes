@@ -1,0 +1,15 @@
+# Im Repository stehen Textdateien immer mit LF — unabhängig davon, auf
+# welchem Betriebssystem jemand arbeitet. Ohne diese Festlegung würde ein
+# Windows-Checkout CRLF schreiben und jede Datei beim nächsten Commit auf
+# einem anderen System als vollständig geändert erscheinen.
+* text=auto eol=lf
+
+# Binärdateien nicht anfassen.
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.webp binary
+*.heic binary
+*.tif binary
+*.tiff binary
+*.ico binary

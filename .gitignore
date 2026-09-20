@@ -1,0 +1,16 @@
+# Abhängigkeiten und Bau-Ergebnisse
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Fotos, Vorschauen, Exporte und die Datenbank des Nutzers.
+# Hier liegen persönliche Dateien — sie gehören in kein Repository.
+data/
+
+# Der API-Schlüssel. `.env.example` ist die Vorlage und wird versioniert.
+.env
+.env.local
+
+*.log
+.DS_Store
+Thumbs.db

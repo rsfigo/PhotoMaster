@@ -1,0 +1,27 @@
+.brush-surface {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  /* Der Systemzeiger wird ausgeblendet; die Größe zeigt der Kreis darunter. */
+  cursor: none;
+}
+
+.brush-cursor {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+  /* Doppelter Rand — hell innen, dunkel außen: Der Umriss bleibt auf jedem
+     Motiv sichtbar, ohne die Bildfarben einzufärben. */
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+/* Beim Radieren gestrichelt — die Betriebsart ist so am Zeiger ablesbar und
+   nicht nur im Bedienfeld. */
+.brush-cursor.is-erasing {
+  border-style: dashed;
+  border-color: rgba(255, 190, 120, 0.95);
+}

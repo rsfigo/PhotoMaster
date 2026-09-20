@@ -1,0 +1,139 @@
+.slider {
+  padding: var(--space-2) 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.slider__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 5px;
+  min-height: 18px;
+}
+
+.slider__label {
+  font-size: var(--fs-base);
+  color: var(--text-muted);
+  cursor: help;
+}
+
+.slider.is-changed .slider__label {
+  color: var(--text);
+}
+
+.slider__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.slider__value {
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  min-width: 46px;
+  text-align: right;
+}
+
+.slider.is-changed .slider__value {
+  color: var(--accent);
+}
+
+.slider__reset {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+
+/* Der Zurücksetzen-Knopf erscheint erst bei Bedarf — er soll die Werteanzeige
+   nicht dauerhaft mit einem zweiten Symbol belasten. Über Tastatur ist er
+   immer erreichbar. */
+.slider:hover .slider__reset,
+.slider__reset:focus-visible {
+  opacity: 1;
+}
+
+.slider__reset:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.slider__track {
+  position: relative;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.slider__rail {
+  position: absolute;
+  inset-inline: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+
+.slider__zero {
+  position: absolute;
+  width: 1px;
+  height: 9px;
+  background: var(--line-strong);
+  transform: translateX(-0.5px);
+}
+
+.slider__fill {
+  position: absolute;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.slider__thumb {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-1);
+  transform: translateX(-50%);
+  transition: transform var(--dur-fast) var(--ease);
+  pointer-events: none;
+}
+
+.slider__track:hover .slider__thumb {
+  transform: translateX(-50%) scale(1.12);
+}
+
+.slider.is-dragging .slider__thumb {
+  transform: translateX(-50%) scale(1.22);
+  background: #fff;
+}
+
+.slider.is-dragging .slider__label,
+.slider.is-dragging .slider__value {
+  color: var(--text);
+}
+
+/* Auf Touch-Geräten braucht der Griff mehr Fläche. */
+@media (pointer: coarse) {
+  .slider__track {
+    height: 30px;
+  }
+  .slider__thumb {
+    width: 18px;
+    height: 18px;
+  }
+  .slider__reset {
+    opacity: 1;
+  }
+}

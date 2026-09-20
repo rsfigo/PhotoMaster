@@ -1,0 +1,102 @@
+/* Ablage & Datenschutz (§30). */
+
+.settings__section + .settings__section {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--line);
+}
+
+.settings__path {
+  margin: var(--space-2) 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-0);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  /* Ein Pfad kann lang sein und darf den Dialog nicht breiter machen. */
+  overflow-wrap: anywhere;
+}
+
+.settings__rows {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings__row:last-child {
+  border-bottom: none;
+}
+
+.settings__row dt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--text);
+}
+
+.settings__row dd {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+
+.settings__row-hint {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+
+.settings__row--total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0 0;
+  margin-top: var(--space-1);
+  border-top: 1px solid var(--line-strong);
+  border-bottom: none;
+}
+
+.settings__row--total dt {
+  color: var(--text);
+}
+
+.settings__row--total dd {
+  margin: 0;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.settings__text {
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.settings__hint {
+  margin: var(--space-3) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.settings__list {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.settings__actions {
+  margin-top: var(--space-4);
+}

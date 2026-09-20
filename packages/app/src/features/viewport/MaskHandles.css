@@ -1,0 +1,75 @@
+.mask-handles {
+  position: absolute;
+  inset: 0;
+  /* Nur die Anfasser selbst fangen Zeigerereignisse — sonst ließe sich das
+     Bild darunter nicht mehr verschieben. */
+  pointer-events: none;
+  touch-action: none;
+  overflow: hidden;
+}
+
+.mh-shape {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 1.5;
+  /* Dunkler Saum darunter: Die Linie bleibt auch auf hellem Himmel sichtbar. */
+  paint-order: stroke;
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.8));
+}
+
+.mh-shape--inner {
+  stroke: rgba(255, 255, 255, 0.45);
+  stroke-dasharray: 5 5;
+}
+
+.mh-line {
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.8));
+}
+
+.mh-line--dashed {
+  stroke: rgba(255, 255, 255, 0.5);
+  stroke-dasharray: 5 6;
+  stroke-width: 1.2;
+}
+
+.mh-line--thin {
+  stroke: rgba(255, 255, 255, 0.6);
+  stroke-width: 1.2;
+}
+
+/* Unsichtbare, großzügige Greifflächen. */
+.mh-grab {
+  fill: transparent;
+  stroke: transparent;
+  pointer-events: auto;
+  cursor: move;
+}
+
+.mh-grab-line {
+  stroke: transparent;
+  stroke-width: 22;
+  pointer-events: auto;
+  cursor: move;
+}
+
+.mh-dot {
+  fill: #fff;
+  stroke: rgba(0, 0, 0, 0.65);
+  stroke-width: 1.5;
+  pointer-events: auto;
+  cursor: grab;
+  transition: r var(--dur-fast) var(--ease);
+}
+
+.mh-dot:hover { fill: var(--accent); }
+.mh-dot:active { cursor: grabbing; }
+
+.mh-dot--rotate { fill: var(--accent); }
+.mh-dot--rotate:hover { fill: #fff; }
+
+@media (pointer: coarse) {
+  .mh-dot { r: 11; }
+  .mh-grab-line { stroke-width: 34; }
+}
