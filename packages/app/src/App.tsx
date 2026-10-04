@@ -9,6 +9,24 @@ import { EditorScreen } from './screens/EditorScreen.tsx';
 import './styles/global.css';
 
 /**
+ * Schickt eine noch nicht gespeicherte Änderung sofort ab.
+ *
+ * Das automatische Speichern wartet, bis die Regler zur Ruhe gekommen sind.
+ * Wer in dieser Zeit den Editor verlässt — Zurück-Schaltfläche, Zurück-Taste
+ * des Browsers —, verlor bisher die letzte Änderung: Der Zeitgeber wurde beim
+ * Schließen des Editors verworfen, und weil die Seite dabei nicht neu lädt,
+ * warnte auch der Browser nicht. Muss aufgerufen werden, BEVOR der
+ * Editor-Zustand geleert wird.
+ */
+function flushPendingEdits(): void {
+  const { project, params, dirty } = useEditor.getState();
+  if (!project || !dirty) return;
+  void api
+    .saveParams(project.id, params)
+    .catch((err) => toastError(err, 'Die letzte Änderung konnte nicht gespeichert werden.'));
+}
+
+/**
  * Navigation ohne Router-Bibliothek.
  *
  * Die App hat zwei Ansichten. Das Projekt steht in der URL (`?p=<id>`), damit
@@ -27,6 +45,7 @@ export function App() {
 
   const openProject = useCallback(
     (next: Project, pushState = true) => {
+      flushPendingEdits();
       setProject(next);
       loadProject(next);
       if (pushState) {
@@ -38,6 +57,7 @@ export function App() {
 
   const goHome = useCallback(
     (pushState = true) => {
+      flushPendingEdits();
       setProject(null);
       clearEditor();
       if (pushState) window.history.pushState({}, '', window.location.pathname);

@@ -32,15 +32,20 @@ export function Histogram({ handle, params }: HistogramProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [channels, setChannels] = useState<Channels | null>(null);
 
+  // Abhängig von den Parametern, nicht vom ganzen `handle`: Das ist bei jedem
+  // Rendern des Editors ein neues Objekt. Sonst löste auch jedes Verschieben
+  // und Zoomen ein Auslesen der GPU aus — obwohl sich das Histogramm des
+  // ganzen Bildes dabei gar nicht ändert.
+  const { status, readProcessedPixels } = handle;
   useEffect(() => {
-    if (handle.status !== 'ready') return;
+    if (status !== 'ready') return;
     const timer = setTimeout(() => {
-      const pixels = handle.readProcessedPixels();
+      const pixels = readProcessedPixels();
       if (!pixels) return;
       setChannels(computeHistogram(pixels.data));
     }, 140);
     return () => clearTimeout(timer);
-  }, [params, handle]);
+  }, [params, status, readProcessedPixels]);
 
   useEffect(() => {
     const canvas = canvasRef.current;

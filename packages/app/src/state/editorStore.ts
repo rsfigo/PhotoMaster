@@ -108,7 +108,16 @@ interface EditorState {
 
   undo: () => void;
   redo: () => void;
-  markSaved: () => void;
+  /**
+   * Meldet den Stand als gespeichert.
+   *
+   * Mit `saved` gilt das nur, wenn seitdem nichts mehr geändert wurde. Das
+   * braucht jeder Aufrufer, der zwischen Absenden und Antwort wartet: Ein
+   * Regler, der während der laufenden Anfrage bewegt wurde, wäre sonst als
+   * gespeichert markiert — sein Wert käme nie beim Server an, und beim
+   * Schließen gäbe es nicht einmal eine Warnung.
+   */
+  markSaved: (saved?: EditParams) => void;
 }
 
 /** Ersetzt eine Maske in der Liste, ohne die übrigen anzufassen. */
@@ -445,7 +454,13 @@ export const useEditor = create<EditorState>((set, get) => ({
     });
   },
 
-  markSaved: () => set({ dirty: false }),
+  // Jede Änderung erzeugt ein neues `params`-Objekt (der Zustand wird nie an
+  // Ort und Stelle verändert). Ist es noch dasselbe Objekt, das gespeichert
+  // wurde, hat sich seitdem nichts getan.
+  markSaved: (saved) => {
+    if (saved && get().params !== saved) return;
+    set({ dirty: false });
+  },
 }));
 
 /** Beschriftung für die Rückgängig-Schaltfläche. */

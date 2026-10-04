@@ -177,7 +177,10 @@ export function EditorScreen({ project, aiStatus, onBack, onProjectUpdate }: Edi
     const timer = setTimeout(() => {
       api
         .saveParams(project.id, params)
-        .then(() => markSaved())
+        // Nur DIESEN Stand als gespeichert melden — wurde während der Anfrage
+        // weiter bearbeitet, bleibt der Editor "ungespeichert", und der
+        // nächste Durchlauf speichert den neuen Stand.
+        .then(() => markSaved(params))
         .catch((err) => toastError(err, 'Die Bearbeitung konnte nicht gespeichert werden.'));
     }, AUTOSAVE_DELAY);
     return () => clearTimeout(timer);

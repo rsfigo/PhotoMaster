@@ -381,3 +381,22 @@ test('ein Strich in eine Maske, die es nicht gibt, läuft ins Leere', () => {
   state().extendStroke(linear, { x: 0.6, y: 0.5 });
   assert.equal(state().params.masks.length, 0);
 });
+
+test('was während des Speicherns geändert wird, gilt nicht als gespeichert', () => {
+  // So läuft das automatische Speichern: Stand abschicken, auf die Antwort
+  // warten, dann melden. Wer in der Zwischenzeit einen Regler bewegt, darf
+  // nicht als "gespeichert" dastehen — sonst kommt der neue Wert nie beim
+  // Server an, und beim Schließen gibt es nicht einmal eine Warnung.
+  open();
+  state().setValueCommitted('exposure', 0.3);
+  const sent = state().params; // geht an den Server
+
+  state().setValueCommitted('contrast', 25); // während die Anfrage läuft
+
+  state().markSaved(sent); // die Antwort für den alten Stand trifft ein
+  assert.equal(state().dirty, true, 'die Änderung während des Speicherns ging verloren');
+
+  // Der zweite Durchlauf speichert den aktuellen Stand — erst dann ist Ruhe.
+  state().markSaved(state().params);
+  assert.equal(state().dirty, false);
+});

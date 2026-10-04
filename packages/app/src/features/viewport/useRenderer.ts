@@ -109,6 +109,9 @@ export function useRenderer(
     setStatus('loading');
     setError(null);
     setFullResolutionReady(false);
+    // Ein noch laufendes Nachladen gehört zum vorigen Foto und meldet sich
+    // nicht mehr zurück — sein Ladezustand darf hier nicht stehen bleiben.
+    setLoadingFullResolution(false);
 
     const onContextLost = (event: Event) => {
       event.preventDefault();
@@ -183,26 +186,53 @@ export function useRenderer(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photo?.id, requestFrame]);
 
+  /**
+   * Laufendes Nachladen des Originals. Wer während des Ladens erneut fragt —
+   * 100-%-Ansicht und gleich danach Export —, wartet auf denselben Vorgang,
+   * statt die 12–40 MB ein zweites Mal zu laden und zu dekodieren.
+   */
+  const fullResLoadRef = useRef<{ renderer: PhotoRenderer; promise: Promise<void> } | null>(null);
+
   const ensureFullResolution = useCallback(async () => {
     const renderer = rendererRef.current;
     if (!renderer || !photo || renderer.hasFullResolution) return;
 
-    setLoadingFullResolution(true);
-    try {
-      const response = await fetch(api.fullResolutionUrl(photo.id));
-      if (!response.ok) throw new Error('Das Original konnte nicht geladen werden.');
-      const blob = await response.blob();
-      const bitmap = await createImageBitmap(blob, {
-        imageOrientation: 'from-image',
-        colorSpaceConversion: 'default',
-      });
-      renderer.setFullResolution(bitmap);
-      bitmap.close();
-      setFullResolutionReady(true);
-      requestFrame();
-    } finally {
-      setLoadingFullResolution(false);
-    }
+    const running = fullResLoadRef.current;
+    if (running && running.renderer === renderer) return running.promise;
+
+    const load = async () => {
+      setLoadingFullResolution(true);
+      try {
+        const response = await fetch(api.fullResolutionUrl(photo.id));
+        if (!response.ok) throw new Error('Das Original konnte nicht geladen werden.');
+        const blob = await response.blob();
+        const bitmap = await createImageBitmap(blob, {
+          imageOrientation: 'from-image',
+          colorSpaceConversion: 'default',
+        });
+
+        // Wurde inzwischen ein anderes Foto geöffnet, ist dieser Renderer
+        // bereits freigegeben. Die Textur dort hineinzuladen, hinterließe
+        // rund 100 MB Grafikspeicher, die niemand mehr freigibt — und das
+        // neue Foto galt fälschlich als in voller Auflösung geladen.
+        if (rendererRef.current !== renderer) {
+          bitmap.close();
+          return;
+        }
+
+        renderer.setFullResolution(bitmap);
+        bitmap.close();
+        setFullResolutionReady(true);
+        requestFrame();
+      } finally {
+        if (fullResLoadRef.current?.renderer === renderer) fullResLoadRef.current = null;
+        if (rendererRef.current === renderer) setLoadingFullResolution(false);
+      }
+    };
+
+    const promise = load();
+    fullResLoadRef.current = { renderer, promise };
+    return promise;
   }, [photo, requestFrame]);
 
   const readProcessedPixels = useCallback(() => {

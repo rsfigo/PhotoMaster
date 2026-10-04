@@ -50,7 +50,7 @@ export function AiPanel({ project, aiStatus, onProjectUpdate }: AiPanelProps) {
       // offen sind — und der Nutzer bekäme ein Ergebnis, das seine letzten
       // Handgriffe stillschweigend verwirft.
       await api.saveParams(project.id, params);
-      markSaved();
+      markSaved(params);
 
       const response = await api.aiEdit(project.id, {
         mode,
