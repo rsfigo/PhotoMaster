@@ -343,3 +343,21 @@ test('die KI kann keine Pinselmaske anlegen', () => {
   assert.deepEqual(mask.strokes, []);
   assert.equal(maskHasEffect(mask), false);
 });
+
+test('ein Pinselpunkt ohne Koordinaten springt nicht an den Bildrand', () => {
+  // `Number(null)` ist 0: Der Punkt wäre sonst an x = 0 gelandet und der
+  // Strich hätte eine Linie quer durchs Bild gezogen.
+  const result = sanitizeMask(
+    {
+      type: 'brush',
+      strokes: [{ points: [{ x: null, y: 0.5 }, { x: 0.5, y: 0.5 }, { x: '', y: 0.4 }] }],
+    },
+    0,
+  );
+  assert.deepEqual(result.value.strokes[0].points, [{ x: 0.5, y: 0.5 }]);
+});
+
+test('eine leere Stärkeangabe schaltet die Maske nicht stillschweigend ab', () => {
+  const result = sanitizeMask({ type: 'radial', strength: '' }, 0);
+  assert.equal(result.value.strength, 100, 'aus "" wurde Stärke 0');
+});

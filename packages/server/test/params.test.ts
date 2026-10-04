@@ -149,3 +149,47 @@ test('die Standardkurve ist die Identität', () => {
     assert.ok(Math.abs(lut[i] - i / 255) < 1e-5, `Identität verletzt bei ${i}`);
   }
 });
+
+// ── Leere Werte sind keine Nullen ──────────────────────────────────────────
+
+test('ein leerer String wird nicht zu einem Regler auf 0', () => {
+  // `Number("")` ergibt 0 — ein fehlender Wert sähe so aus wie eine bewusste
+  // Einstellung und fiele niemandem auf.
+  const result = sanitizeValuePatch({ exposure: '', contrast: '   ', vibrance: null });
+
+  assert.deepEqual(result.value, {}, 'aus einem leeren Wert wurde eine Zahl');
+  assert.equal(result.issues.length, 3, 'die verworfenen Werte wurden verschwiegen');
+});
+
+test('ein Kurvenpunkt ohne Koordinaten verschiebt nicht den Schwarzpunkt', () => {
+  // `{ x: null, y: 0.8 }` hätte als (0, 0.8) die Schatten massiv angehoben.
+  const result = sanitizeCurve(
+    [
+      { x: 0, y: 0 },
+      { x: null, y: 0.8 },
+      { x: 1, y: 1 },
+    ],
+    'rgb',
+  );
+  assert.deepEqual(result.value, [
+    { x: 0, y: 0 },
+    { x: 1, y: 1 },
+  ]);
+});
+
+test('eine zu lange Kurve behält Schwarz- und Weißpunkt', () => {
+  // Die ersten 16 Punkte zu behalten hieße, das obere Ende abzuschneiden — bei
+  // dieser Kurve endete sie dann bei x = 0,52, und alle Lichter darüber
+  // würden anders abgebildet.
+  const points = Array.from({ length: 30 }, (_, i) => ({ x: i / 29, y: Math.sqrt(i / 29) }));
+  const result = sanitizeCurve(points, 'rgb');
+
+  assert.equal(result.value.length, 16);
+  assert.deepEqual(result.value[0], points[0], 'der Schwarzpunkt fehlt');
+  assert.deepEqual(result.value[15], points[29], 'der Weißpunkt fehlt');
+  // Gleichmäßig verteilt und streng steigend — sonst entstünden Knicke.
+  for (let i = 1; i < result.value.length; i++) {
+    assert.ok(result.value[i].x > result.value[i - 1].x);
+  }
+  assert.match(result.issues.join(' '), /ausgedünnt/);
+});

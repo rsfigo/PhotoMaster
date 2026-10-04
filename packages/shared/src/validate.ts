@@ -53,6 +53,25 @@ function isRecord(x: unknown): x is Record<string, unknown> {
 }
 
 /**
+ * Liest eine Zahl aus einem unbekannten Wert — streng.
+ *
+ * `Number()` allein ist dafür zu großzügig: `Number(null)`, `Number("")` und
+ * `Number([])` ergeben 0, `Number(true)` ergibt 1. Ein fehlender Wert würde so
+ * zu "Regler auf 0", ein fehlender Pinselpunkt zu einem Punkt am linken
+ * Bildrand — statt aufzufallen. Akzeptiert werden deshalb nur echte Zahlen und
+ * nicht-leere Zeichenketten, die vollständig eine Zahl darstellen (manche
+ * Modelle liefern "+12").
+ */
+function toFiniteNumber(v: unknown): number | null {
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v !== 'string') return null;
+  const trimmed = v.trim();
+  if (trimmed === '') return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
  * Normalisiert eine Teilmenge von Parameterwerten (z. B. eine KI-Antwort).
  * Unbekannte Schlüssel und ungültige Zahlen werden verworfen, gültige Werte
  * auf den erlaubten Bereich geclampt und auf die Schrittweite gerundet.
@@ -72,8 +91,10 @@ export function sanitizeValuePatch(input: unknown): SanitizeResult<Partial<Param
       continue;
     }
     // Manche Modelle liefern Zahlen als String ("+12") — das ist reparierbar.
-    const num = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw.trim()) : NaN;
-    if (!Number.isFinite(num)) {
+    // Ein leerer String oder null dagegen ist kein Wert, auch wenn `Number()`
+    // daraus eine 0 machen würde.
+    const num = toFiniteNumber(raw);
+    if (num === null) {
       issues.push(`Parameter "${key}" war kein gültiger Zahlenwert und wurde ignoriert.`);
       continue;
     }
@@ -99,9 +120,9 @@ export function sanitizeCurve(input: unknown, channelLabel: string): SanitizeRes
   const pts: CurvePoint[] = [];
   for (const p of input) {
     if (!isRecord(p)) continue;
-    const x = Number(p.x);
-    const y = Number(p.y);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    const x = toFiniteNumber(p.x);
+    const y = toFiniteNumber(p.y);
+    if (x === null || y === null) continue;
     pts.push({
       x: Math.min(1, Math.max(0, x)),
       y: Math.min(1, Math.max(0, y)),
@@ -130,11 +151,28 @@ export function sanitizeCurve(input: unknown, channelLabel: string): SanitizeRes
   }
 
   if (unique.length > MAX_CURVE_POINTS) {
-    issues.push(`Kurve "${channelLabel}" auf ${MAX_CURVE_POINTS} Punkte gekürzt.`);
-    unique.length = MAX_CURVE_POINTS;
+    issues.push(`Kurve "${channelLabel}" auf ${MAX_CURVE_POINTS} Punkte ausgedünnt.`);
+    return { value: thinCurve(unique, MAX_CURVE_POINTS), issues };
   }
 
   return { value: unique, issues };
+}
+
+/**
+ * Dünnt eine zu lange Kurve gleichmäßig aus.
+ *
+ * Die Endpunkte bleiben immer erhalten: Sie tragen Schwarz- und Weißpunkt.
+ * Einfach die ersten N Punkte zu behalten hieße, das obere Ende der Kurve
+ * abzuschneiden — und damit sämtliche Lichter anders abzubilden.
+ */
+function thinCurve(points: CurvePoint[], max: number): CurvePoint[] {
+  const inner = max - 2;
+  const out: CurvePoint[] = [points[0]];
+  for (let i = 1; i <= inner; i++) {
+    out.push(points[Math.round((i * (points.length - 1)) / (inner + 1))]);
+  }
+  out.push(points[points.length - 1]);
+  return out;
 }
 
 function sanitizeCurves(input: unknown): SanitizeResult<Curves> {
@@ -153,8 +191,8 @@ function sanitizeCurves(input: unknown): SanitizeResult<Curves> {
 // ── Lokale Masken (§28) ────────────────────────────────────────────────────
 
 const num = (v: unknown, lo: number, hi: number, fallback: number): number => {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v.trim()) : NaN;
-  if (!Number.isFinite(n)) return fallback;
+  const n = toFiniteNumber(v);
+  if (n === null) return fallback;
   return Math.min(hi, Math.max(lo, n));
 };
 
@@ -162,8 +200,8 @@ const bool = (v: unknown, fallback: boolean): boolean => (typeof v === 'boolean'
 
 /** Winkel zyklisch auf 0…360 bringen, damit aus −30 die 330 wird und nicht die 0. */
 const wrapAngle = (v: unknown, fallback: number): number => {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v.trim()) : NaN;
-  if (!Number.isFinite(n)) return fallback;
+  const n = toFiniteNumber(v);
+  if (n === null) return fallback;
   return ((n % 360) + 360) % 360;
 };
 
@@ -215,9 +253,9 @@ function sanitizeStrokes(input: unknown): SanitizeResult<BrushStroke[]> {
         droppedPoints++;
         continue;
       }
-      const x = Number(p.x);
-      const y = Number(p.y);
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      const x = toFiniteNumber(p.x);
+      const y = toFiniteNumber(p.y);
+      if (x === null || y === null) {
         droppedPoints++;
         continue;
       }
