@@ -84,11 +84,36 @@ export function aiStatus(): AiStatus {
 type JsonSchema = Record<string, unknown>;
 
 /**
+ * Modelle, die eine abgelehnte Anfrage serverseitig auf einem Ausweichmodell
+ * wiederholen können. Bei jedem anderen per PM_AI_MODEL gewählten Modell
+ * fehlt der Parameter, statt die Anfrage mit einem 400 scheitern zu lassen.
+ */
+const FALLBACK_CAPABLE_MODELS = new Set([
+  'claude-opus-5-5',
+  'claude-opus-5',
+  'claude-fable-5-1',
+  'claude-sonnet-5-5',
+]);
+
+/**
  * Ein Aufruf mit erzwungenem Antwortformat.
  *
  * `output_config.format` bindet die Antwort an das Schema — das Modell kann
  * keinen Fließtext und keinen Parameternamen zurückgeben, den es nicht gibt.
  * Das ersetzt das fehleranfällige "Antworte nur mit JSON" im Prompt.
+ *
+ * **Gestreamt, auch wenn niemand mitliest.** Ohne Streaming schickt die API
+ * die Kopfzeilen erst, wenn die ganze Antwort fertig ist; eine Zeitgrenze
+ * misst dann die gesamte Rechenzeit — und schneidet eine lange, legitime
+ * Antwort mit ausführlichem Nachdenken ab. Mit Streaming beginnt die Antwort
+ * sofort, die Zeitgrenze erfasst nur noch eine Gegenstelle, die gar nicht
+ * antwortet, und `finalMessage()` setzt das Ergebnis wieder zusammen.
+ *
+ * **Ausweichmodell bei Ablehnung.** Die Sicherheitsfilter können auch eine
+ * harmlose Anfrage ablehnen. `fallbacks: "default"` wiederholt sie dann
+ * serverseitig auf dem dafür empfohlenen Modell, statt dem Nutzer eine
+ * Absage zu zeigen. Zurückgegeben wird deshalb auch, welches Modell
+ * tatsächlich geantwortet hat.
  */
 async function callStructured<T>(options: {
   system: string;
@@ -96,18 +121,22 @@ async function callStructured<T>(options: {
   history?: ChatTurn[];
   schema: JsonSchema;
   effort: 'low' | 'medium' | 'high';
-}): Promise<T> {
+}): Promise<{ data: T; model: string }> {
   const anthropic = getClient();
 
-  const messages: Anthropic.MessageParam[] = [];
+  const messages: Anthropic.Beta.BetaMessageParam[] = [];
   for (const turn of options.history ?? []) {
     messages.push({ role: turn.role, content: turn.content });
   }
   messages.push({ role: 'user', content: options.content });
 
-  let response: Anthropic.Message;
+  const fallback = FALLBACK_CAPABLE_MODELS.has(config.ai.model)
+    ? { betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default' as const }
+    : {};
+
+  let response: Anthropic.Beta.BetaMessage;
   try {
-    response = await anthropic.messages.create({
+    const stream = anthropic.beta.messages.stream({
       model: config.ai.model,
       max_tokens: config.ai.maxTokens,
       // Der System-Prompt ist lang und ändert sich nie — zwischenspeichern
@@ -119,7 +148,9 @@ async function callStructured<T>(options: {
         format: { type: 'json_schema', schema: options.schema },
       },
       messages,
+      ...fallback,
     });
+    response = await stream.finalMessage();
   } catch (err) {
     throw translateAnthropicError(err);
   }
@@ -132,7 +163,13 @@ async function callStructured<T>(options: {
     );
   }
 
-  const text = response.content.find((b): b is Anthropic.TextBlock => b.type === 'text')?.text;
+  // Der LETZTE Textblock ist die Antwort. Nach einem Wechsel auf ein
+  // Ausweichmodell steht davor ein `fallback`-Block — und wer den ersten
+  // Textblock nimmt, liest unter Umständen die abgebrochene Antwort des
+  // ablehnenden Modells.
+  const text = response.content
+    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
+    .at(-1)?.text;
   if (!text) {
     throw new AppError(
       'AI_FAILED',
@@ -142,12 +179,12 @@ async function callStructured<T>(options: {
   }
 
   try {
-    return JSON.parse(text) as T;
+    return { data: JSON.parse(text) as T, model: response.model };
   } catch {
     throw new AppError(
       'AI_FAILED',
       'Die Antwort der KI war unvollständig. Versuche es bitte erneut.',
-      `Antwort war kein gültiges JSON (${text.length} Zeichen).`,
+      `Antwort war kein gültiges JSON (${text.length} Zeichen, stop_reason=${response.stop_reason}).`,
     );
   }
 }
@@ -196,6 +233,20 @@ async function imageBlock(path: string): Promise<Anthropic.ContentBlockParam> {
   };
 }
 
+// ── Antwortfelder auslesen (§32) ───────────────────────────────────────────
+
+/*
+ * Das Antwortschema legt die Form fest, aber die Antwort bleibt eine Eingabe
+ * von außen: Wird sie abgeschnitten oder weicht ein Modell ab, darf ein Feld,
+ * das ein Array sein sollte und keines ist, nicht zu einem TypeError führen.
+ */
+
+const asText = (v: unknown): string => (typeof v === 'string' ? v : '');
+
+/** Die Zeichenketten eines Arrays, höchstens `max` — alles andere fällt weg. */
+const strings = (v: unknown, max: number): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').slice(0, max) : [];
+
 // ── Szenenanalyse (§8) ─────────────────────────────────────────────────────
 
 export async function analyzeScene(
@@ -203,7 +254,7 @@ export async function analyzeScene(
   stats: ImageStats,
   photo: PhotoMeta,
 ): Promise<SceneAnalysis> {
-  const result = await callStructured<SceneAnalysis>({
+  const { data: result } = await callStructured<Partial<Record<keyof SceneAnalysis, unknown>>>({
     system: SCENE_SYSTEM_PROMPT,
     content: [
       await imageBlock(analysisImagePath),
@@ -215,13 +266,13 @@ export async function analyzeScene(
   });
 
   return {
-    subject: String(result.subject ?? '').slice(0, 200),
-    categories: (result.categories ?? []).slice(0, 8).map((c) => String(c).slice(0, 60)),
-    lighting: String(result.lighting ?? ''),
-    timeOfDay: String(result.timeOfDay ?? ''),
-    mood: String(result.mood ?? ''),
-    composition: String(result.composition ?? ''),
-    observations: (result.observations ?? []).slice(0, 6).map((o) => String(o)),
+    subject: asText(result.subject).slice(0, 200),
+    categories: strings(result.categories, 8).map((c) => c.slice(0, 60)),
+    lighting: asText(result.lighting),
+    timeOfDay: asText(result.timeOfDay),
+    mood: asText(result.mood),
+    composition: asText(result.composition),
+    observations: strings(result.observations, 6),
   };
 }
 
@@ -273,7 +324,7 @@ function mergeMasks(
   const reasons: { param: string; text: string; mask: string }[] = [];
   const issues: string[] = [];
 
-  for (const raw of incoming ?? []) {
+  for (const raw of Array.isArray(incoming) ? incoming : []) {
     if (typeof raw !== 'object' || raw === null) continue;
 
     const id = typeof raw.id === 'string' ? raw.id : '';
@@ -289,7 +340,7 @@ function mergeMasks(
     const values: Record<string, unknown> = { ...(existing?.values ?? {}) };
     const pending: { param: string; text: string }[] = [];
 
-    for (const adj of raw.adjustments ?? []) {
+    for (const adj of Array.isArray(raw.adjustments) ? raw.adjustments : []) {
       const param = typeof adj?.parameter === 'string' ? adj.parameter : '';
       if (!isLocalParam(param)) {
         issues.push(`Parameter "${param}" ist lokal nicht verfügbar und wurde verworfen.`);
@@ -350,7 +401,7 @@ export async function proposeEdit(req: EditRequest): Promise<AiEditResult> {
   content.push({ type: 'text', text: buildCurrentParamsBlock(req.currentParams) });
   content.push({ type: 'text', text: instruction });
 
-  const raw = await callStructured<RawEditResponse>({
+  const { data: raw, model } = await callStructured<RawEditResponse>({
     system: EDIT_SYSTEM_PROMPT,
     content,
     history: req.history,
@@ -358,7 +409,7 @@ export async function proposeEdit(req: EditRequest): Promise<AiEditResult> {
     effort: 'high',
   });
 
-  return normalizeEditResponse(raw, req.currentParams, config.ai.model);
+  return normalizeEditResponse(raw, req.currentParams, model);
 }
 
 /**
@@ -383,7 +434,7 @@ export function normalizeEditResponse(
   const reasons: { param: string; text: string }[] = [];
   const issues: string[] = [];
 
-  for (const adj of raw.adjustments ?? []) {
+  for (const adj of Array.isArray(raw.adjustments) ? raw.adjustments : []) {
     const id = typeof adj.parameter === 'string' ? adj.parameter : '';
     if (!PARAM_BY_ID.has(id)) {
       issues.push(`Unbekannter Parameter "${id}" verworfen.`);
@@ -489,7 +540,7 @@ export async function coachReport(
     text: 'Beurteile diese AUFNAHME und gib Hinweise für das nächste Mal.',
   });
 
-  const raw = await callStructured<RawCoachResponse>({
+  const { data: raw } = await callStructured<RawCoachResponse>({
     system: COACH_SYSTEM_PROMPT,
     content,
     schema: COACH_RESPONSE_SCHEMA as unknown as JsonSchema,
@@ -497,16 +548,16 @@ export async function coachReport(
   });
 
   return {
-    overall: typeof raw.overall === 'string' ? raw.overall : '',
-    ratings: (raw.ratings ?? [])
-      .filter((r) => typeof r.label === 'string')
+    overall: asText(raw.overall),
+    ratings: (Array.isArray(raw.ratings) ? raw.ratings : [])
+      .filter((r) => typeof r === 'object' && r !== null && typeof r.label === 'string')
       .map((r) => ({
         label: String(r.label),
         score: Math.max(0, Math.min(100, Math.round(Number(r.score) || 0))),
         comment: typeof r.comment === 'string' ? r.comment : '',
       }))
       .slice(0, 6),
-    tips: (raw.tips ?? []).map((t) => String(t)).slice(0, 5),
+    tips: strings(raw.tips, 5),
     createdAt: new Date().toISOString(),
   };
 }

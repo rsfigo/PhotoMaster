@@ -116,9 +116,9 @@ function parseIntent(body: { mode?: unknown; text?: unknown; presetId?: unknown 
 }
 
 /** Begrenzt den mitgeschickten Gesprächsverlauf (§27). */
-function parseHistory(input: unknown): ChatTurn[] {
+export function parseHistory(input: unknown): ChatTurn[] {
   if (!Array.isArray(input)) return [];
-  return input
+  const turns = input
     .filter((t): t is ChatTurn => {
       if (typeof t !== 'object' || t === null) return false;
       const turn = t as Record<string, unknown>;
@@ -128,6 +128,13 @@ function parseHistory(input: unknown): ChatTurn[] {
         turn.content.length > 0
       );
     })
-    .slice(-12)
-    .map((t) => ({ role: t.role, content: t.content.slice(0, 4000) }));
+    .slice(-12);
+
+  // Die API verlangt, dass ein Gespräch mit dem Nutzer beginnt. Das Kürzen
+  // auf die letzten zwölf Beiträge kann aber mitten in ein Paar schneiden —
+  // dann stünde eine Antwort ohne ihre Frage am Anfang, und JEDE weitere
+  // Anfrage scheiterte mit einem 400. Führende Antworten fallen deshalb weg.
+  while (turns.length > 0 && turns[0].role !== 'user') turns.shift();
+
+  return turns.map((t) => ({ role: t.role, content: t.content.slice(0, 4000) }));
 }

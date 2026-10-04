@@ -37,8 +37,14 @@ export const config = {
 
   ai: {
     apiKey: process.env.ANTHROPIC_API_KEY?.trim() || null,
-    model: process.env.PM_AI_MODEL?.trim() || 'claude-opus-5',
-    maxTokens: num(process.env.PM_AI_MAX_TOKENS, 16000),
+    model: process.env.PM_AI_MODEL?.trim() || 'claude-opus-5-5',
+    /**
+     * Obergrenze der Antwort einschließlich des Nachdenkens. Kostet nichts,
+     * solange sie nicht ausgeschöpft wird — zu knapp bemessen schnitte sie
+     * aber das JSON mitten in einem Wert ab. Weil gestreamt wird, setzt die
+     * HTTP-Zeitgrenze hier keine Schranke.
+     */
+    maxTokens: num(process.env.PM_AI_MAX_TOKENS, 32000),
 
     /**
      * Abweichender Endpunkt — für einen Firmen-Proxy oder ein Gateway, das
@@ -47,12 +53,13 @@ export const config = {
     baseUrl: process.env.ANTHROPIC_BASE_URL?.trim() || null,
 
     /**
-     * Obergrenze für einen einzelnen Aufruf. Ein Bearbeitungsvorschlag mit
-     * ausführlichem Nachdenken darf dauern — aber nicht unbegrenzt: Ohne
-     * Grenze bliebe die Oberfläche bei einer hängenden Verbindung für immer
-     * im Wartezustand, statt eine Meldung zu zeigen (§29).
+     * Wie lange auf den BEGINN der Antwort gewartet wird. Weil gestreamt
+     * wird, ist das nicht die Rechenzeit — die darf bei ausführlichem
+     * Nachdenken Minuten dauern —, sondern die Zeit, bis die Gegenstelle
+     * überhaupt antwortet. Ohne Grenze bliebe die Oberfläche bei einer
+     * hängenden Verbindung für immer im Wartezustand (§29).
      */
-    timeoutMs: num(process.env.PM_AI_TIMEOUT_MS, 180_000),
+    timeoutMs: num(process.env.PM_AI_TIMEOUT_MS, 90_000),
   },
 } as const;
 
