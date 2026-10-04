@@ -33,6 +33,7 @@ import {
   type SceneAnalysis,
 } from '@photomaster/shared';
 import { config } from '../config.ts';
+import { diagnoseEnvFile } from '../envcheck.ts';
 import { AppError } from '../errors.ts';
 import {
   COACH_SYSTEM_PROMPT,
@@ -74,7 +75,10 @@ export function aiStatus(): AiStatus {
     return {
       available: false,
       model: null,
+      // Liegt eine .env vor, aus der der Schlüssel nicht angekommen ist, sagt
+      // die Meldung, woran es liegt — statt in jedem Fall dasselbe.
       reason:
+        diagnoseEnvFile(config.rootDir) ??
         'Kein API-Schlüssel hinterlegt. Trage ANTHROPIC_API_KEY in die Datei .env ein, um die KI-Funktionen zu nutzen. Die manuelle Bearbeitung und der Export funktionieren auch ohne.',
     };
   }

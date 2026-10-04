@@ -15,12 +15,25 @@ npm run dev
 Danach [http://localhost:5173](http://localhost:5173) öffnen. Das war alles —
 ohne Datenbankserver, ohne Docker, ohne Konto.
 
-KI-Funktionen sind optional. Für sie eine Datei `.env` im Projektwurzel-
-verzeichnis anlegen (`.env.example` als Vorlage):
+KI-Funktionen sind optional. Den API-Schlüssel gibt es auf
+[platform.claude.com](https://platform.claude.com) unter „API Keys“ — die API
+wird dort eigens abgerechnet, ein Claude-Abo enthält kein API-Guthaben. Dann
+die Vorlage kopieren und den Schlüssel hinter `ANTHROPIC_API_KEY=` einfügen:
 
+```bash
+cp .env.example .env
 ```
-ANTHROPIC_API_KEY=sk-ant-...
+
+```bash
+notepad .env
 ```
+
+Mit `npm run dev` startet der Server beim Speichern von selbst neu; danach die
+Seite neu laden. Die Datei besser nicht per `echo … > .env` anlegen: Windows
+PowerShell schreibt sie dann als UTF-16, und Node liest sie nicht. Geht
+dabei etwas schief — falsche Kodierung, leere oder auskommentierte Zeile,
+`.env.txt` statt `.env`, falscher Ordner —, sagt die App im KI-Bereich und im
+Server-Log, woran es liegt.
 
 Ohne Schlüssel funktionieren **alle** Regler, Presets, Versionen, der
 Vorher/Nachher-Vergleich und der Export in voller Auflösung unverändert. Die
@@ -30,7 +43,7 @@ so, als täten sie etwas.
 | Befehl | Wirkung |
 |---|---|
 | `npm run dev` | Server und Oberfläche gemeinsam starten |
-| `npm test` | Testsuite (180 Tests) |
+| `npm test` | Testsuite (187 Tests) |
 | `npm run typecheck` | TypeScript über alle vier Pakete |
 | `npm run build` | Produktions-Build der Oberfläche |
 

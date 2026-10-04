@@ -13,6 +13,8 @@ const num = (v: string | undefined, fallback: number): number => {
 const rootDir = resolve(import.meta.dirname, '../../..');
 
 export const config = {
+  /** Projektordner — dort liegt die `.env`, die die Start-Skripte einlesen. */
+  rootDir,
   port: num(process.env.PM_PORT, 5174),
   host: process.env.PM_HOST ?? '127.0.0.1',
 
