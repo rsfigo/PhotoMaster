@@ -108,7 +108,7 @@ Leben — die beim Export. Kein Re-Encoding bei Bearbeitungsschritten.
 | Datenbank | **`node:sqlite`** (Node-Builtin) | Keine native Dependency, kein Build-Schritt, transaktional |
 | Encode/Decode | **sharp (libvips 8.17)** | Referenzqualität, 16 Bit, TIFF/PNG/JPEG, HEIF, ICC |
 | Metadaten | **exifr** (lesen) + **piexifjs** (JPEG-Transplantation) | Reine JS-Lösungen statt eines 50-MB-Binaries |
-| KI | **Anthropic Claude**, serverseitig | Strukturierte Parameterausgabe via Tool-Use; der API-Key verlässt den Server nie |
+| KI | **Anthropic Claude** (`claude-opus-5-5`), serverseitig | Antwort per JSON-Schema erzwungen (Structured Outputs), gestreamt; der API-Key verlässt den Server nie |
 
 ### Verworfene Alternativen
 
@@ -190,6 +190,20 @@ Es existiert kein Code-Pfad, über den eine KI-Antwort zu Bildpixeln werden kann
 Das Modell kann das Bild physisch nicht verändern, sondern nur Reglerwerte
 vorschlagen, die anschließend validiert und geclampt werden (§32). Generative
 Bildbearbeitung ist damit nicht „verboten", sondern architektonisch unmöglich.
+
+### Aufrufweg
+
+Jeder Aufruf wird **gestreamt**, auch wenn niemand die Zwischenstände liest.
+Ohne Streaming schickt die API die Kopfzeilen erst, wenn die ganze Antwort
+fertig ist — eine Zeitgrenze misst dann die gesamte Rechenzeit und bricht
+eine lange, legitime Antwort mit ausführlichem Nachdenken ab. Gestreamt
+beginnt die Antwort sofort; `PM_AI_TIMEOUT_MS` erfasst nur noch eine
+Gegenstelle, die gar nicht antwortet.
+
+Lehnen die Sicherheitsfilter eine harmlose Anfrage fälschlich ab, wiederholt
+die API sie dank `fallbacks: "default"` serverseitig auf einem Ausweichmodell.
+Die Oberfläche bekommt dann das Ergebnis statt einer Absage, und der Bericht
+nennt das Modell, das tatsächlich geantwortet hat.
 
 ### Prüfbarkeit ohne API-Schlüssel
 

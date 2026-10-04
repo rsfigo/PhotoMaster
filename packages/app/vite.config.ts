@@ -16,12 +16,17 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    // Mit PORT lässt sich ausweichen, wenn 5173 schon von einem anderen
+    // Projekt belegt ist. `strictPort` verhindert, dass Vite stattdessen
+    // still auf den nächsten Port springt — das wäre 5174, und dort läuft
+    // die API, die dann nicht mehr starten könnte.
+    port: Number(process.env.PORT) || 5173,
+    strictPort: true,
     // Über den Proxy laufen Oberfläche und API auf derselben Herkunft —
     // dadurch braucht der Server kein CORS.
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:5174',
+        target: `http://127.0.0.1:${process.env.PM_PORT || 5174}`,
         changeOrigin: false,
         // Ein Export überträgt bis zu 96 MB und kann je nach Bildgröße dauern.
         timeout: 15 * 60 * 1000,

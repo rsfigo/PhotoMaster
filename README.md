@@ -30,7 +30,7 @@ so, als täten sie etwas.
 | Befehl | Wirkung |
 |---|---|
 | `npm run dev` | Server und Oberfläche gemeinsam starten |
-| `npm test` | Testsuite (157 Tests) |
+| `npm test` | Testsuite (180 Tests) |
 | `npm run typecheck` | TypeScript über alle vier Pakete |
 | `npm run build` | Produktions-Build der Oberfläche |
 
@@ -222,9 +222,13 @@ oder das Stern-Symbol an einem Preset. Ohne diese Klicks verlässt kein
 Bildmaterial den Rechner. Ohne hinterlegten API-Schlüssel ist der Weg
 überhaupt nicht vorhanden.
 
-**GPS-Daten werden nicht gelesen.** Der EXIF-Parser ist ausdrücklich ohne
-GPS-Block konfiguriert — was nicht gelesen wird, kann auch nicht versehentlich
-weitergegeben werden.
+**Standortdaten verlassen den Rechner nicht — auch nicht im Export.** Der
+EXIF-Parser liest den GPS-Block gar nicht erst, also kann er weder in der
+Oberfläche noch in einer KI-Anfrage auftauchen. Und weil ein Export die Datei
+ist, die geteilt wird, entfernt der Export ihn ausdrücklich: Kamera, Objektiv,
+Blende, Zeit und ISO bleiben erhalten, die Koordinaten nicht. Der Exportbericht
+sagt, wenn welche entfernt wurden. Nachgeprüft in `pipeline.test.ts` mit einem
+Foto, das echte Koordinaten trägt.
 
 **Der API-Schlüssel** steht in `.env`, wird nur serverseitig verwendet und
 erreicht den Browser nie.
@@ -291,10 +295,11 @@ Alles optional, alles über `.env`:
 | Variable | Standard | Bedeutung |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | — | Schaltet die KI-Funktionen frei |
-| `PM_AI_MODEL` | `claude-opus-5` | Verwendetes Modell |
+| `PM_AI_MODEL` | `claude-opus-5-5` | Verwendetes Modell |
 | `ANTHROPIC_BASE_URL` | — | Abweichender Endpunkt, etwa ein Firmen-Proxy |
-| `PM_AI_TIMEOUT_MS` | `180000` | Zeitgrenze für einen KI-Aufruf |
+| `PM_AI_TIMEOUT_MS` | `90000` | Wie lange auf den Beginn einer KI-Antwort gewartet wird |
 | `PM_PORT` | `5174` | Port der API |
+| `PORT` | `5173` | Port der Oberfläche im Dev-Modus — zum Ausweichen, wenn 5173 belegt ist |
 | `PM_DATA_DIR` | `./data` | Ablageort für Fotos und Datenbank |
 | `PM_PREVIEW_EDGE` | `2560` | Kantenlänge der Bearbeitungsvorschau |
 | `PM_MAX_UPLOAD_MB` | `400` | Obergrenze für den Import |
