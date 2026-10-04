@@ -9,13 +9,17 @@
 import { config } from './config.ts';
 import { buildApp } from './app.ts';
 import { closeDatabase, openDatabase } from './db.ts';
-import { ensureDirectories } from './storage.ts';
+import { clearTempFiles, ensureDirectories } from './storage.ts';
 import { aiStatus } from './ai/service.ts';
 
 const app = await buildApp();
 
 async function start(): Promise<void> {
   await ensureDirectories();
+  const leftovers = await clearTempFiles();
+  if (leftovers > 0) {
+    app.log.info(`${leftovers} Zwischendatei(en) eines unterbrochenen Vorgangs entfernt`);
+  }
   openDatabase();
 
   await app.listen({ port: config.port, host: config.host });

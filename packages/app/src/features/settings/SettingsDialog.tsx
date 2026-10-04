@@ -183,10 +183,10 @@ export function SettingsDialog({ open, onClose, capabilities }: SettingsDialogPr
             <dt>
               GPS-Daten
               <span className="settings__row-hint">
-                Der EXIF-Parser ist ohne GPS-Block konfiguriert
+                nicht gelesen und beim Export aus der Datei entfernt
               </span>
             </dt>
-            <dd className="mono">werden nicht gelesen</dd>
+            <dd className="mono">bleiben hier</dd>
           </div>
           <div className="settings__row">
             <dt>

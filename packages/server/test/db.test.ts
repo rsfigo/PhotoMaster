@@ -127,3 +127,17 @@ test('ein unbekanntes Projekt liefert eine verständliche Fehlermeldung', () => 
     (err: Error) => /nicht gefunden/.test(err.message),
   );
 });
+
+test('eine gelöschte aktive Version hinterlässt keinen Verweis ins Leere', () => {
+  const project = db.createProject('p1', 'Verweis');
+  const version = db.createVersion(project.id, 'Aktiv', createDefaultParams());
+  db.setActiveVersion(project.id, version.id);
+  assert.equal(db.getProject(project.id).activeVersionId, version.id);
+
+  db.deleteVersion(version.id);
+  assert.equal(
+    db.getProject(project.id).activeVersionId,
+    null,
+    'das Projekt verweist auf eine Version, die es nicht mehr gibt',
+  );
+});

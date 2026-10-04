@@ -179,11 +179,18 @@ async function ingestRaw(
   const rawWidth = declaredSize.width;
   const rawHeight = declaredSize.height;
 
+  // Verglichen werden die LANGEN Kanten. Die Sensormaße stehen in der Datei
+  // immer quer, die Vorschau ist hier aber bereits nach EXIF gedreht — bei
+  // einem Hochformat stünde sonst 4000 gegen 6000, und ein vollständiges
+  // Bild sähe aus wie eine verkleinerte Vorschau.
+  const previewEdge = Math.max(width, height);
+  const sensorEdge = rawWidth && rawHeight ? Math.max(rawWidth, rawHeight) : 0;
+
   // Manche Kameras legen nur ein kleines Vorschaubildchen in die RAW-Datei.
   // Das als "das Foto" zum Bearbeiten anzubieten wäre irreführend: Der Nutzer
   // würde eine 24-MP-Datei importieren und stillschweigend ein Briefmarkenbild
   // bearbeiten. Lieber klar ablehnen (§39).
-  if (rawWidth && rawHeight && width < rawWidth * 0.5) {
+  if (sensorEdge > 0 && previewEdge < sensorEdge * 0.5) {
     await rm(target, { force: true });
     throw new AppError(
       'UNSUPPORTED_FORMAT',
@@ -194,7 +201,7 @@ async function ingestRaw(
     );
   }
 
-  if (rawWidth && rawHeight && rawWidth > width * 1.05) {
+  if (sensorEdge > previewEdge * 1.05) {
     warnings.push(
       `Die RAW-Datei enthält ${rawWidth}×${rawHeight} Sensorpixel, die eingebettete Vorschau ` +
         `jedoch nur ${width}×${height}. Bearbeitet und exportiert wird die Vorschau.`,

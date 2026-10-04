@@ -57,8 +57,12 @@ export async function readMetadata(filePath: string): Promise<RawMetadata> {
       camera,
       orientation: orientation && orientation >= 1 && orientation <= 8 ? orientation : 1,
       hasExif: Object.keys(camera).length > 0 || orientation !== undefined,
-      declaredWidth: numeric(exif.ImageWidth ?? exif.ExifImageWidth),
-      declaredHeight: numeric(exif.ImageHeight ?? exif.ExifImageHeight),
+      // Die GRÖSSERE Angabe zählt. In RAW-Dateien beschreibt IFD0 oft nur das
+      // Miniaturbild (bei Nikon 160×120), die Sensorgröße steht im EXIF-Block.
+      // Mit der kleinen Zahl liefe die Prüfung auf ein zu kleines eingebettetes
+      // Vorschaubild ins Leere — sie hielte jedes Bild für groß genug.
+      declaredWidth: largest(exif.ImageWidth, exif.ExifImageWidth),
+      declaredHeight: largest(exif.ImageHeight, exif.ExifImageHeight),
     };
   } catch {
     return { camera: {}, orientation: 1, hasExif: false };
@@ -72,8 +76,14 @@ const str = (v: unknown): string | undefined => {
 };
 
 const numeric = (v: unknown): number | undefined => {
-  const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN;
   return Number.isFinite(n) ? n : undefined;
+};
+
+/** Die größte gültige Zahl unter den Angaben, oder undefined. */
+const largest = (...values: unknown[]): number | undefined => {
+  const nums = values.map(numeric).filter((n): n is number => n !== undefined && n > 0);
+  return nums.length > 0 ? Math.max(...nums) : undefined;
 };
 
 function toIso(v: unknown): string | undefined {

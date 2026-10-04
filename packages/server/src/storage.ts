@@ -44,20 +44,53 @@ export async function writeTempFromStream(
   let bytes = 0;
 
   const sink = createWriteStream(path);
-  await pipeline(
-    source,
-    async function* (chunks) {
-      for await (const chunk of chunks) {
-        const buf = chunk as Buffer;
-        hash.update(buf);
-        bytes += buf.length;
-        yield buf;
-      }
-    },
-    sink,
-  );
+  try {
+    await pipeline(
+      source,
+      async function* (chunks) {
+        for await (const chunk of chunks) {
+          const buf = chunk as Buffer;
+          hash.update(buf);
+          bytes += buf.length;
+          yield buf;
+        }
+      },
+      sink,
+    );
+  } catch (err) {
+    // Ein abgebrochener Upload (Tab geschlossen, Verbindung weg) hinterließe
+    // sonst eine halbe Datei in tmp/ — bei RAW-Dateien jedes Mal einige
+    // Dutzend Megabyte, die niemand mehr zuordnen kann.
+    await rm(path, { force: true }).catch(() => {});
+    throw err;
+  }
 
   return { path, hash: hash.digest('hex'), bytes };
+}
+
+/**
+ * Leert das Verzeichnis für Zwischendateien beim Start.
+ *
+ * Was dort beim Start liegt, stammt per Definition von einem Vorgang, den ein
+ * Absturz oder ein hartes Beenden unterbrochen hat. Es wird von nichts mehr
+ * referenziert — Originale liegen nie in tmp/, sondern werden von dort nach
+ * originals/ kopiert, bevor die Zwischendatei verschwindet.
+ */
+export async function clearTempFiles(): Promise<number> {
+  let entries: Dirent[];
+  try {
+    entries = await readdir(paths.tmp, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  let removed = 0;
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    await rm(join(paths.tmp, entry.name), { force: true })
+      .then(() => removed++)
+      .catch(() => {});
+  }
+  return removed;
 }
 
 export function originalPath(hash: string, ext: string): string {

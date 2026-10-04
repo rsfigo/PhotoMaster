@@ -446,6 +446,10 @@ export function updateVersion(
 export function deleteVersion(id: string): void {
   const res = conn().prepare('DELETE FROM versions WHERE id = ?').run(id);
   if (res.changes === 0) throw new AppError('NOT_FOUND', 'Diese Version wurde nicht gefunden.');
+  // War sie die aktive Version eines Projekts, darf der Verweis nicht ins
+  // Leere zeigen — `active_version_id` hat keinen Fremdschlüssel, der das
+  // von selbst erledigen würde.
+  conn().prepare('UPDATE projects SET active_version_id = NULL WHERE active_version_id = ?').run(id);
 }
 
 /** Umfang der Ablage für die Datenschutz-Auskunft (§30). */

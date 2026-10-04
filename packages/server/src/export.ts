@@ -13,7 +13,7 @@
  * wäre falsch — es würde sRGB-Werte als AdobeRGB oder P3 deklarieren.
  */
 
-import { readFile, writeFile } from 'node:fs/promises';
+import { open, writeFile } from 'node:fs/promises';
 import sharp from 'sharp';
 import piexif from 'piexifjs';
 import type { ExportFormat, ExportReport, ExportSettings, PhotoMeta } from '@photomaster/shared';
@@ -49,27 +49,16 @@ export async function encodeExport(req: EncodeRequest): Promise<ExportReport> {
     limitInputPixels: 0,
   }).removeAlpha();
 
-  let outWidth = width;
-  let outHeight = height;
-
   // Verkleinern ist ausdrücklich Opt-in. Der Default ist immer die
   // Originalauflösung (§20).
   if (settings.resizeWidth > 0 || settings.resizeHeight > 0) {
-    const targetW = settings.resizeWidth > 0 ? settings.resizeWidth : null;
-    const targetH = settings.resizeHeight > 0 ? settings.resizeHeight : null;
     pipeline = pipeline.resize({
-      width: targetW ?? undefined,
-      height: targetH ?? undefined,
+      width: settings.resizeWidth > 0 ? settings.resizeWidth : undefined,
+      height: settings.resizeHeight > 0 ? settings.resizeHeight : undefined,
       fit: 'inside',
       withoutEnlargement: false,
       kernel: 'lanczos3',
     });
-    const scale = Math.min(
-      targetW ? targetW / width : Infinity,
-      targetH ? targetH / height : Infinity,
-    );
-    outWidth = Math.round(width * scale);
-    outHeight = Math.round(height * scale);
   }
 
   // Der Datenstrom ist sRGB — das wird ausgezeichnet, nicht umgerechnet.
@@ -100,9 +89,18 @@ export async function encodeExport(req: EncodeRequest): Promise<ExportReport> {
       throw new AppError('BAD_REQUEST', 'Unbekanntes Exportformat.');
   }
 
+  // Die Ausgabemaße kommen vom Encoder selbst, nicht aus einer eigenen
+  // Nachrechnung: Beim Verkleinern rundet libvips nach eigenen Regeln, und
+  // schon ein Pixel Abweichung stünde sonst falsch im Bericht und im
+  // EXIF-Block der Datei.
   let buffer: Buffer;
+  let outWidth: number;
+  let outHeight: number;
   try {
-    buffer = await pipeline.toBuffer();
+    const encoded = await pipeline.toBuffer({ resolveWithObject: true });
+    buffer = encoded.data;
+    outWidth = encoded.info.width;
+    outHeight = encoded.info.height;
   } catch (err) {
     throw new AppError(
       'EXPORT_FAILED',
@@ -201,6 +199,16 @@ async function attachMetadata(
     exifObj.thumbnail = null;
     exifObj['1st'] = {};
 
+    // Standortdaten gehen NICHT mit (§30). Ein Export ist die Datei, die
+    // geteilt wird — und GPS-Koordinaten darin verraten, wo jemand wohnt,
+    // arbeitet oder Urlaub macht. Die App sagt zu, Standortdaten nicht
+    // weiterzugeben; der vollständige EXIF-Block des Originals enthielte sie
+    // aber, ohne dass sie je gelesen würden. Leeren genügt: piexif entfernt
+    // dann auch den Verweis auf den GPS-Block aus IFD0.
+    const hadLocation = Object.keys(exifObj.GPS ?? {}).length > 0;
+    exifObj.GPS = {};
+    delete exifObj['0th'][piexif.ImageIFD.GPSTag];
+
     // piexif.dump() liefert NUR die Nutzlast ("Exif\0\0" + TIFF-Block), nicht
     // das fertige JPEG-Segment. Marker und Längenfeld müssen selbst davor —
     // ohne sie steht hinter dem SOI-Marker ein Datenblock ohne Kennzeichnung,
@@ -230,7 +238,9 @@ async function attachMetadata(
     return {
       buffer: withExif,
       preserved: true,
-      note: 'Aufnahmedaten, Kamera- und Objektivinformationen wurden übernommen.',
+      note: hadLocation
+        ? 'Aufnahmedaten, Kamera- und Objektivinformationen wurden übernommen. Standortdaten (GPS) wurden entfernt.'
+        : 'Aufnahmedaten, Kamera- und Objektivinformationen wurden übernommen.',
     };
   } catch (err) {
     // Fehlgeschlagene Metadatenübernahme darf den Export nicht scheitern
@@ -306,10 +316,19 @@ function buildExifFromCamera(photo: PhotoMeta): ExifObject | null {
   return { '0th': zeroth, Exif: exif, GPS: {}, Interop: {}, '1st': {}, thumbnail: null };
 }
 
-/** EXIF speichert Brüche als [Zähler, Nenner]. */
+/**
+ * EXIF speichert Brüche als [Zähler, Nenner].
+ *
+ * Belichtungszeiten wie 1/250 s werden als Stammbruch geschrieben, so wie sie
+ * auf der Kamera stehen. Alles andere — 0,8 s, f/5,6 — als Dezimalbruch: Die
+ * Stammbruch-Form allein machte aus 0,8 s eine volle Sekunde.
+ */
 function toRational(value: number): [number, number] {
-  if (value >= 1) return [Math.round(value * 100), 100];
-  return [1, Math.max(1, Math.round(1 / value))];
+  if (value > 0 && value < 1) {
+    const denominator = Math.round(1 / value);
+    if (Math.abs(1 / denominator - value) <= value * 0.01) return [1, denominator];
+  }
+  return [Math.round(value * 1000), 1000];
 }
 
 function exifDate(d: Date): string {
@@ -317,10 +336,22 @@ function exifDate(d: Date): string {
   return `${d.getFullYear()}:${p(d.getMonth() + 1)}:${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
-/** Liest nur den Dateianfang — EXIF steht immer am Beginn der Datei. */
+/**
+ * Liest nur den Dateianfang — EXIF steht immer am Beginn der Datei.
+ *
+ * Wirklich nur den Anfang: Die Datei vollständig einzulesen und danach
+ * abzuschneiden, hielte bei einem 40-MB-Original 40 MB im Speicher, um 2 MB
+ * davon zu benutzen — und das parallel zu den 96 MB Pixeldaten des Exports.
+ */
 async function readHead(path: string, maxBytes: number): Promise<Buffer> {
-  const full = await readFile(path);
-  return full.length > maxBytes ? full.subarray(0, maxBytes) : full;
+  const handle = await open(path, 'r');
+  try {
+    const buffer = Buffer.alloc(maxBytes);
+    const { bytesRead } = await handle.read(buffer, 0, maxBytes, 0);
+    return buffer.subarray(0, bytesRead);
+  } finally {
+    await handle.close();
+  }
 }
 
 /** Zusammenfassung der Aufnahmedaten für die Anzeige. */

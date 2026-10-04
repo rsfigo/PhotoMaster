@@ -173,3 +173,33 @@ test('Exporte aufräumen lässt Originale und Vorschauen unangetastet', async ()
   // Ein zweiter Aufruf auf einem leeren Verzeichnis meldet schlicht nichts.
   assert.deepEqual(await storage.clearExports(), { removed: 0, freedBytes: 0 });
 });
+
+test('ein abgebrochener Upload hinterlässt keine halbe Datei', async () => {
+  const { Readable } = await import('node:stream');
+  const { paths } = await import('../src/config.ts');
+  const { readdir } = await import('node:fs/promises');
+
+  // Ein Datenstrom, der mitten im Upload abreißt — wie beim Schließen des Tabs.
+  const broken = new Readable({
+    read() {
+      this.push(Buffer.alloc(64 * 1024, 1));
+      this.destroy(new Error('Verbindung getrennt'));
+    },
+  });
+
+  const before = (await readdir(paths.tmp)).length;
+  await assert.rejects(() => storage.writeTempFromStream(broken, '.nef'));
+  assert.equal((await readdir(paths.tmp)).length, before, 'die halbe Datei blieb in tmp/ liegen');
+});
+
+test('Reste eines unterbrochenen Vorgangs verschwinden beim Start', async () => {
+  const { paths } = await import('../src/config.ts');
+  const { readdir } = await import('node:fs/promises');
+
+  await writeFile(join(paths.tmp, 'abgestuerzt-1.jpg'), Buffer.alloc(1000));
+  await writeFile(join(paths.tmp, 'abgestuerzt-2.nef'), Buffer.alloc(2000));
+
+  const removed = await storage.clearTempFiles();
+  assert.equal(removed, 2);
+  assert.deepEqual(await readdir(paths.tmp), []);
+});
