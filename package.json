@@ -19,8 +19,8 @@
     "dev:app": "npm run dev -w @photomaster/app",
     "build": "npm run build -w @photomaster/app",
     "start": "npm run start -w @photomaster/server",
-    "typecheck": "tsc -p packages/shared && tsc -p packages/engine && tsc -p packages/server && tsc -p packages/app",
-    "test": "node --experimental-strip-types --test packages/server/test/*.test.ts"
+    "typecheck": "tsc -p packages/shared && tsc -p packages/engine && tsc -p packages/engine/tsconfig.test.json && tsc -p packages/server && tsc -p packages/app",
+    "test": "node --experimental-strip-types --test packages/server/test/*.test.ts packages/engine/test/*.test.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

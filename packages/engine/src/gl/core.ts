@@ -217,7 +217,31 @@ export interface RenderTarget {
   height: number;
   /** Interne Formatkennung, damit der Pool kompatible Ziele wiederverwendet. */
   formatKey: string;
+  /** Belegter Grafikspeicher — Grundlage dafür, wann der Pool aufräumt. */
+  bytes: number;
 }
+
+/**
+ * So viel Grafikspeicher dürfen Ziele belegen, die gerade niemand benutzt.
+ *
+ * Genug, um den Arbeitssatz eines Vorschau-Frames auch auf einem großen
+ * Bildschirm zwischen zwei Frames zu halten — und wenig genug, dass alte
+ * Fenstergrößen und Exportkacheln nicht dauerhaft Speicher binden, den eine
+ * integrierte Grafikeinheit mit dem ganzen System teilt.
+ */
+const IDLE_BUDGET_BYTES = 192 * 1024 * 1024;
+
+/**
+ * Die so vielen zuletzt angeforderten Formate gelten als in Gebrauch und
+ * werden nie verdrängt — auch dann nicht, wenn das Budget überschritten ist.
+ * Ein Vorschau-Frame benutzt drei bis fünf Formate (Bildschirmgröße in 16 und
+ * 8 Bit, die Tiefpass-Größe, die Pinselmaske). Ohne diesen Schutz würde ein
+ * Arbeitssatz, der allein größer ist als das Budget — ein großer Bildschirm —,
+ * sich in jedem Frame selbst wegwerfen und neu anlegen. Gezählt wird nach
+ * Formaten, nicht nach Anforderungen: Beim Ziehen am Fensterrand bringt jeder
+ * Frame eine neue Größe mit, und die vorige soll dann rasch abgegeben werden.
+ */
+const PROTECTED_FORMATS = 8;
 
 export type TargetPrecision = 'float' | 'byte';
 
@@ -225,10 +249,22 @@ export type TargetPrecision = 'float' | 'byte';
  * Hält Render-Targets vor und gibt sie wieder frei. 24-MP-Verarbeitung erzeugt
  * pro Pass ein Ziel von bis zu 190 MB; ohne Wiederverwendung würde die GPU
  * innerhalb weniger Frames den Speicher verlieren.
+ *
+ * Wiederverwendet wird nur ein Ziel derselben Größe. Daraus folgt die zweite
+ * Aufgabe des Pools: Ziele einer Größe, die niemand mehr anfordert, wieder
+ * abzugeben. Jede Fenstergröße beim Ziehen am Rand und jede Kachelgröße eines
+ * Exports bliebe sonst bis zum Schließen des Editors im Grafikspeicher —
+ * beim Ziehen am Fensterrand wüchse er mit jeder Zwischengröße. Freigegeben
+ * wird deshalb, sobald die ruhenden Ziele das Budget überschreiten, und zwar
+ * das am längsten nicht mehr angeforderte Format zuerst.
  */
 export class TargetPool {
   private readonly free: RenderTarget[] = [];
   private readonly live = new Set<RenderTarget>();
+  /** Formatkennung → Zeitpunkt der letzten Anforderung (fortlaufender Zähler). */
+  private readonly lastUse = new Map<string, number>();
+  private tick = 0;
+  private freeBytes = 0;
   private readonly gl: WebGL2RenderingContext;
   private readonly caps: GlCapabilities;
 
@@ -240,10 +276,12 @@ export class TargetPool {
   acquire(width: number, height: number, precision: TargetPrecision = 'float'): RenderTarget {
     const usableFloat = precision === 'float' && this.caps.floatRenderTargets;
     const formatKey = `${usableFloat ? 'f16' : 'u8'}:${width}x${height}`;
+    this.lastUse.set(formatKey, ++this.tick);
 
     const idx = this.free.findIndex((t) => t.formatKey === formatKey);
     if (idx >= 0) {
       const t = this.free.splice(idx, 1)[0];
+      this.freeBytes -= t.bytes;
       this.live.add(t);
       return t;
     }
@@ -274,7 +312,8 @@ export class TargetPool {
     }
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    const target: RenderTarget = { texture, framebuffer, width, height, formatKey };
+    const bytes = width * height * (usableFloat ? 8 : 4);
+    const target: RenderTarget = { texture, framebuffer, width, height, formatKey, bytes };
     this.live.add(target);
     return target;
   }
@@ -283,15 +322,43 @@ export class TargetPool {
     if (!target) return;
     if (!this.live.delete(target)) return;
     this.free.push(target);
+    this.freeBytes += target.bytes;
+    this.evictIdle();
   }
 
-  /** Gibt Ziele frei, die nicht zur aktuellen Größe passen (nach Bildwechsel). */
-  trim(keepFormatKeys: Set<string>): void {
-    for (let i = this.free.length - 1; i >= 0; i--) {
-      if (keepFormatKeys.has(this.free[i].formatKey)) continue;
-      this.destroyTarget(this.free[i]);
-      this.free.splice(i, 1);
+  /** Gibt ruhende Ziele ab, bis das Budget wieder eingehalten ist. */
+  private evictIdle(): void {
+    while (this.freeBytes > IDLE_BUDGET_BYTES) {
+      let oldest = -1;
+      let oldestUse = Infinity;
+      for (let i = 0; i < this.free.length; i++) {
+        const use = this.lastUse.get(this.free[i].formatKey) ?? 0;
+        if (use < oldestUse) {
+          oldestUse = use;
+          oldest = i;
+        }
+      }
+      if (oldest < 0) return;
+
+      // Ist selbst das älteste ruhende Format noch unter den zuletzt
+      // benutzten, ist alles Übrige gerade in Gebrauch — dann lieber über dem
+      // Budget bleiben, als den laufenden Frame neu anlegen zu lassen.
+      let newer = 0;
+      for (const use of this.lastUse.values()) if (use > oldestUse) newer++;
+      if (newer < PROTECTED_FORMATS) return;
+
+      const [target] = this.free.splice(oldest, 1);
+      this.freeBytes -= target.bytes;
+      this.destroyTarget(target);
+      this.forgetIfUnused(target.formatKey);
     }
+  }
+
+  /** Vergisst ein Format, von dem kein Ziel mehr existiert. */
+  private forgetIfUnused(formatKey: string): void {
+    if (this.free.some((t) => t.formatKey === formatKey)) return;
+    for (const t of this.live) if (t.formatKey === formatKey) return;
+    this.lastUse.delete(formatKey);
   }
 
   private destroyTarget(t: RenderTarget): void {
@@ -304,10 +371,12 @@ export class TargetPool {
     for (const t of this.live) this.destroyTarget(t);
     this.free.length = 0;
     this.live.clear();
+    this.lastUse.clear();
+    this.freeBytes = 0;
   }
 
-  get stats(): { free: number; live: number } {
-    return { free: this.free.length, live: this.live.size };
+  get stats(): { free: number; live: number; freeBytes: number } {
+    return { free: this.free.length, live: this.live.size, freeBytes: this.freeBytes };
   }
 }
 
